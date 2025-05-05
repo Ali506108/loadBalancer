@@ -1,17 +1,11 @@
-FROM alpine:latest
-
-RUN apk add --update --no-cache python3 && ln -sf python3 /usr/bin/python
-RUN python3 -m ensurepip
-RUN pip3 install --no-cache --upgrade pip flask requests
-
-ENV exposed_port=5000
-
-EXPOSE $exposed_port
+FROM python:3.12-alpine
 
 WORKDIR /app
 
-COPY *.py ./
+COPY . .
 
-ARG FLASK_APP=app.py
+RUN pip install --no-cache-dir flask requests
 
-CMD python3 -m flask run --host=0.0.0.0 --port=$exposed_port
+EXPOSE 5000
+
+CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]

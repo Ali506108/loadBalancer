@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - load_balancer
+
+  load_balancer:
+    build: ./load_balancer/app
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./load_balancer/app/servers.json:/app/servers.json
+    depends_on:
+      - http1
+      - http2
+      - http3
+
+  http1:
+    build: ./http_server/app
+    environment:
+      - LB_IP_ADDR=load_balancer
+      - LB_PORT=8001
+    ports:
+      - "5001:5000"
+
+  http2:
+    build: ./http_server/app
+    environment:
+      - LB_IP_ADDR=load_balancer
+      - LB_PORT=8001
+    ports:
+      - "5002:5000"
+
+  http3:
+    build: ./http_server/app
+    environment:
+      - LB_IP_ADDR=load_balancer
+      - LB_PORT=8001
+    ports:
+      - "5003:5000"

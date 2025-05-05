@@ -1,43 +1,40 @@
 from flask import Flask
 from math import factorial
+from random import randint
 import requests
 import os
 
-# Defining flask application
 app = Flask(__name__)
 
+
 def update_status(my_port):
+    lb_ip_addr = os.environ.get("LB_IP_ADDR", "localhost")
+    lb_port = os.environ.get("LB_PORT", "8001")
 
-    lb_ip_addr = os.environ['LB_IP_ADDR']
-    lb_port = os.environ['LB_PORT']
+    try:
+        return requests.get(f"http://{lb_ip_addr}:{lb_port}/port_update/{my_port}")
+    except Exception as e:
+        return str(e)
 
-    return requests.get("http://" + \
-                        lb_ip_addr + ":" + \
-                        str(lb_port) + \
-                        "/port_update/" + \
-                        str(my_port))
 
 @app.route("/")
 @app.route("/<int:my_port>")
 def factapp(my_port=None):
-
     random_value = randint(100, 1000)
 
-    print("random_value", random_key)
-    
-    # Calculating the factorial
-    res = str(factorial(key_value))
+    print("random_value", random_value)
 
-    # Building a string to display
-    return_string = "Factorial of " + str(random_value) + \
-                    " = " + str(res)
+    res = str(factorial(random_value))
+
+    return_string = f"Factorial of {random_value} = {res}"
 
     if my_port is not None:
         update_res = str(update_status(my_port))
-        if update_res != '<Response [200]>':
-            return 'Failed to update port status :' + update_res
+        if "200" not in update_res:
+            return f'Failed to update port status: {update_res}'
 
     return return_string
+
 
 if __name__ == "__main__":
     app.run()
