@@ -36,5 +36,10 @@ def factapp(my_port=None):
     return return_string
 
 
+@app.route("/health", methods=["GET"])
+def healthcheck():
+    """Лёгкий ping-эндпойнт для балансировщика."""
+    return "", 204
+
 if __name__ == "__main__":
     app.run()
