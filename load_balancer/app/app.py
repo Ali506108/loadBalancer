@@ -22,6 +22,15 @@ def update_port(available_port):
     port_list.append(str(available_port))
     return '200'
 
+
+@app.route("/health")
+def health():
+    return '', 204
+
+@app.route("/")
+def root():
+    return f"I'm backend on port {PORT}"
+
 @app.route("/")
 def entrypoint():
     next_port = next_available_server()

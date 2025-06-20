@@ -4,8 +4,8 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install --no-cache-dir flask
+RUN pip install --no-cache-dir aiohttp
 
 EXPOSE 8001
 
-CMD ["flask", "run", "--host=0.0.0.0", "--port=8001"]
+CMD ["python", "load_balancer.py"]

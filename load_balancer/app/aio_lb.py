@@ -1,88 +1,72 @@
-import asyncio, os, logging
+import asyncio
+import os
+import logging
 from aiohttp import web, ClientSession, ClientTimeout
 
 logging.basicConfig(level=logging.INFO)
 
-HOST = os.getenv("HOST", "localhost")
-PORTS_ENV = os.getenv("PORTS", "5001-5005")
+HOST = os.getenv("HOST", "3.83.117.56")
+PORTS_ENV = os.getenv("PORTS", "5001,5002,5003")  # Adjusted for your 3 ports
 CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", 5))
-PROBE_TIMEOUT   = float(os.getenv("PROBE_TIMEOUT", 0.5))
+PROBE_TIMEOUT = float(os.getenv("PROBE_TIMEOUT", 0.5))
 
-PORT_QUEUE: asyncio.Queue[int] = asyncio.Queue()
-OFFLINE: set[int] = set()
+# Use a list to track available ports for round-robin
+AVAILABLE_PORTS = []
+OFFLINE = set()
 
 def _expand(port_str: str) -> list[int]:
-    """Преобразует `5001-5005,5010` → [5001,5002,5003,5004,5005,5010]"""
+    """Converts `5001,5002,5003` into [5001, 5002, 5003]"""
     res = []
     for part in port_str.split(","):
-        if "-" in part:
-            a, b = map(int, part.split("-"))
-            res.extend(range(a, b + 1))
-        else:
-            res.append(int(part))
+        res.append(int(part))
     return res
 
-for p in _expand(PORTS_ENV):
-    PORT_QUEUE.put_nowait(p)
+# Initialize available ports
+AVAILABLE_PORTS = _expand(PORTS_ENV)
 
 async def health_monitor():
-    """Периодически проверяет OFFLINE-порты и реанимирует живые."""
+    """Periodically checks offline ports and revives healthy ones."""
     timeout = ClientTimeout(total=PROBE_TIMEOUT)
     async with ClientSession(timeout=timeout) as session:
         while True:
             await asyncio.sleep(CHECK_INTERVAL)
             for port in list(OFFLINE):
-
                 url = f"http://{HOST}:{port}/health"
                 try:
                     async with session.get(url) as r:
                         if r.status == 204:
                             OFFLINE.remove(port)
-                            await PORT_QUEUE.put(port)
+                            AVAILABLE_PORTS.append(port)
                             logging.info("Port %s is back online", port)
                 except Exception:
                     pass
 
-
+async def get_next_port():
+    """Returns the next available port in a round-robin fashion."""
+    while not AVAILABLE_PORTS:
+        await asyncio.sleep(0.1)  # Wait if no ports are available
+    port = AVAILABLE_PORTS.pop(0)
+    if port not in OFFLINE:
+        AVAILABLE_PORTS.append(port)  # Put back for round-robin
+        return port
+    else:
+        return await get_next_port()  # Skip offline ports
 
 async def index(request: web.Request):
-    """Выбирает живой порт и делает 302 Redirect."""
-    max_attempts = PORT_QUEUE.qsize() + len(OFFLINE)
-    attempt = 0
-    while attempt < max_attempts:
-        port = await PORT_QUEUE.get()
-        attempt += 1
-
-        if port in OFFLINE:
-
-            continue
-
-
-        timeout = ClientTimeout(total=PROBE_TIMEOUT)
-        async with ClientSession(timeout=timeout) as session:
-            try:
-                url = f"http://{HOST}:{port}/health"
-                async with session.get(url) as r:
-                    if r.status == 204:
-
-                        await PORT_QUEUE.put(port)
-
-                        raise web.HTTPFound(f"http://{HOST}:{port}/")
-            except Exception:
-                OFFLINE.add(port)
-                logging.warning("Port %s marked OFFLINE", port)
-
-    raise web.HTTPServiceUnavailable(text="No back-end servers available")
+    """Selects the next healthy port and performs a 302 Redirect."""
+    port = await get_next_port()
+    url = f"http://{HOST}:{port}/"
+    logging.info("Redirecting client to: %s", url)
+    raise web.HTTPFound(url)
 
 async def port_update(request: web.Request):
-    """Получает ping от backend'а после обработки запроса."""
+    """Receives ping from backend after request processing."""
     port = int(request.match_info["port"])
     if port in OFFLINE:
         OFFLINE.remove(port)
-    if port not in PORT_QUEUE._queue:
-        await PORT_QUEUE.put(port)
+    if port not in AVAILABLE_PORTS:
+        AVAILABLE_PORTS.append(port)
     return web.json_response({"status": "ok"})
-
 
 app = web.Application()
 app.add_routes([
