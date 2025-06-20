@@ -12,7 +12,7 @@ services:
 
   http:
     build:
-      context: ./http_server
+      context: ./http_server/app
       dockerfile: Dockerfile
     deploy:
       replicas: 3
