@@ -1,11 +1,5 @@
-FROM python:3.12-alpine
-
+FROM python:3.12-slim
 WORKDIR /app
-
-COPY . .
-
-RUN pip install --no-cache-dir aiohttp
-
-EXPOSE 8001
-
-CMD ["python", "load_balancer.py"]
+COPY . /app
+RUN pip install -r requirements.txt
+CMD ["python", "aio_lb.py"]

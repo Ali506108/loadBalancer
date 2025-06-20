@@ -1,31 +1,32 @@
-version: "3.8"
-
 services:
   load_balancer:
     build:
-      context: ./load_balancer
-      dockerfile: app/Dockerfile
-    command: python app/aio_lb.py          # <-- запускаем новый файл
+      context: ./load_balancer/app
+      dockerfile: Dockerfile
+    command: python aio_lb.py
     environment:
-      HOST: localhost       # для macOS / Windows
-      PORTS: "5001,5002,5003"               # соответствуют --scale
+      HOST: localhost
+      PORTS: "5001,5002,5003"
     ports:
       - "8001:8001"
-    # (по желанию) подключите Docker-socket, чтобы в будущем автодискаверить контейнеры
-    # volumes:
-    #   - /var/run/docker.sock:/var/run/docker.sock
 
   http:
-    build: ./http_server
+    build:
+      context: ./http_server
+      dockerfile: Dockerfile
     deploy:
-      replicas: 10                     # docker compose --scale http=10
+      replicas: 3
     environment:
-      - PORT=5000                      # внутренний порт контейнера
+      - PORT=5000
     expose:
       - "5000"
+    ports:
+      - "5001-5003:5000"
 
   nginx:
-    build: ./nginx
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
     ports:
       - "8040:80"
     depends_on:
