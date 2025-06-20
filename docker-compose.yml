@@ -2,11 +2,13 @@ version: "3.8"
 
 services:
   load_balancer:
-    build: ./load_balancer
-    command: python aio_lb.py          # <-- запускаем новый файл
+    build:
+      context: ./load_balancer
+      dockerfile: app/Dockerfile
+    command: python app/aio_lb.py          # <-- запускаем новый файл
     environment:
       HOST: host.docker.internal       # для macOS / Windows
-      PORTS: "5001-5010"               # соответствуют --scale
+      PORTS: "5001,5002,5003"               # соответствуют --scale
     ports:
       - "8001:8001"
     # (по желанию) подключите Docker-socket, чтобы в будущем автодискаверить контейнеры
