@@ -7,7 +7,7 @@ services:
       dockerfile: app/Dockerfile
     command: python app/aio_lb.py          # <-- запускаем новый файл
     environment:
-      HOST: host.docker.internal       # для macOS / Windows
+      HOST: localhost       # для macOS / Windows
       PORTS: "5001,5002,5003"               # соответствуют --scale
     ports:
       - "8001:8001"
